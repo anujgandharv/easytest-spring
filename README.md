@@ -1,4 +1,4 @@
-easytest-spring
-===============
+EasyTest Spring: An extension of EasyTest Core module to support Data Driven Testing for Spring based projects.
+------------------------------------------------------------------------------------------------------
 
-An extension of EasyTest Core module to support Spring based Data Driven Integration Testing
+For details on using EasyTest Spring module look at : https://github.com/EaseTech/easytest/wiki/EasyTest-:-Spring-Integration
