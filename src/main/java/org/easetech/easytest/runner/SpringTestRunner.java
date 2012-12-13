@@ -1,6 +1,11 @@
 
 package org.easetech.easytest.runner;
 
+import org.easetech.easytest.reports.data.DurationBean;
+
+import java.util.Date;
+import org.easetech.easytest.reports.data.TestResultBean;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -14,6 +19,9 @@ import org.easetech.easytest.annotation.DataLoader;
 import org.easetech.easytest.annotation.Intercept;
 import org.easetech.easytest.annotation.Param;
 import org.easetech.easytest.internal.EasyAssignments;
+import org.easetech.easytest.io.Resource;
+import org.easetech.easytest.io.ResourceLoader;
+import org.easetech.easytest.io.ResourceLoaderStrategy;
 import org.easetech.easytest.loader.DataConverter;
 import org.easetech.easytest.loader.Loader;
 import org.easetech.easytest.loader.LoaderFactory;
@@ -142,6 +150,8 @@ public class SpringTestRunner extends Suite {
          * This is extremely handy in cases where we want to reflectively set instance fields on a test class.
          */
         Object testInstance;
+        
+        TestResultBean testResult;
 
         /**
          * 
@@ -153,6 +163,7 @@ public class SpringTestRunner extends Suite {
         public EasyTestRunner(Class<?> klass) throws InitializationError {
             super(klass);
             try {
+                testReportContainer = new ReportDataContainer(getTestClass().getJavaClass());
                 testInstance = getTestClass().getOnlyConstructor().newInstance();
                 getTestContextManager().prepareTestInstance(testInstance);
                 instrumentClass(getTestClass().getJavaClass());
@@ -495,12 +506,12 @@ public class SpringTestRunner extends Suite {
             protected void runWithCompleteAssignment(final EasyAssignments complete) throws InstantiationException,
                 IllegalAccessException, InvocationTargetException, NoSuchMethodException, Throwable {
                 new BlockJUnit4ClassRunner(getTestClass().getJavaClass()) {
-                    @Override
+                    
                     protected void collectInitializationErrors(List<Throwable> errors) {
                         // do nothing
                     }
 
-                    @Override
+                    
                     public Statement methodBlock(FrameworkMethod method) {
                         final Statement statement = super.methodBlock(method);
                       //Sample Run Notifier to catch any runnable events for a test and do something.
@@ -529,12 +540,12 @@ public class SpringTestRunner extends Suite {
                         };
                     }
 
-                    @Override
+                    
                     protected Statement methodInvoker(FrameworkMethod method, Object test) {
                         return methodCompletesWithParameters(method, complete, test);
                     }
 
-                    @Override
+                    
                     public Object createTest() throws Exception {
                         return testInstance;
                     }
@@ -560,12 +571,46 @@ public class SpringTestRunner extends Suite {
              */
             private Statement methodCompletesWithParameters(final FrameworkMethod method, final EasyAssignments complete,
                 final Object freshInstance) {
+                
+                final RunNotifier testRunNotifier = new RunNotifier();
+                final TestRunDurationListener testRunDurationListener = new TestRunDurationListener();
+                testRunNotifier.addListener(testRunDurationListener);
+                final EachTestNotifier eachRunNotifier = new EachTestNotifier(testRunNotifier, null);
+                
                 return new Statement() {
-                    @Override
+                    
                     public void evaluate() throws Throwable {
+                        String currentMethodName = method.getMethod().getName();
+                        testResult = new TestResultBean();
+                        testResult.setMethod(currentMethodName);
+                        testResult.setDate(new Date());
                         try {
                             final Object[] values = complete.getMethodArguments(true);
+                         // Log Statistics about the test method as well as the actual testSubject, if required.
+                            boolean testContainsInputParams = (values.length != 0);
+                            Map<String, Object> inputData = null;
+                         // invoke test method
+                            eachRunNotifier.fireTestStarted();
                             Object returnObj = method.invokeExplosively(freshInstance, values);
+                            eachRunNotifier.fireTestFinished();
+                            DurationBean testItemDurationBean = new DurationBean(currentMethodName, testRunDurationListener.getStartInNano(), testRunDurationListener.getEndInNano());
+                            testResult.addTestItemDurationBean(testItemDurationBean);
+                            
+                            testResult.setOutput((returnObj == null) ? "void" : returnObj);
+                            testResult.setPassed(Boolean.TRUE);
+                            if (!mapMethodName.equals(method.getMethod().getName())) {
+                                // if mapMethodName is not same as the current executing method name
+                                // then assign that to mapMethodName to write to writableData
+                                mapMethodName = method.getMethod().getName();
+                                // initialize the row number.
+                                rowNum = 0;
+                            }
+                            if (writableData.get(mapMethodName) != null) {
+                                inputData = writableData.get(mapMethodName).get(rowNum);
+                                testResult.setInput(inputData);
+                            } else{
+                                testResult.setInput(null);
+                            }
                             if (returnObj != null) {
                                 LOG.debug("returnObj:" + returnObj);
                                 if (!mapMethodName.equals(method.getMethod().getName())) {
@@ -576,13 +621,36 @@ public class SpringTestRunner extends Suite {
                                 if (writableData.get(mapMethodName) != null) {
                                     LOG.debug("writableData.get(mapMethodName)" + writableData.get(mapMethodName)
                                         + " ,rowNum:" + rowNum);
-                                    writableData.get(mapMethodName).get(rowNum++).put(Loader.ACTUAL_RESULT, returnObj);
+                                    
+                                    Map<String, Object> writableRow = writableData.get(mapMethodName).get(rowNum);
+                                    writableRow.put(Loader.ACTUAL_RESULT, returnObj);
+                                    if (testContainsInputParams) {
+                                    LOG.debug("writableData.get(mapMethodName)" + writableData.get(mapMethodName)
+                                        + " ,rowNum:" + rowNum);
+                                    inputData.put(Loader.ACTUAL_RESULT, returnObj);
+                                    }
+                                    Object expectedResult = writableRow.get(Loader.EXPECTED_RESULT);
+                                    // if expected result exist in user input test data,
+                                    // then compare that with actual output result
+                                    // and write the status back to writable map data.
+                                    if (expectedResult != null) {
+                                        LOG.debug("Expected result exists");
+                                        if (expectedResult.toString().equals(returnObj.toString())) {
+                                            writableRow.put(Loader.TEST_STATUS, Loader.TEST_PASSED);
+                                        } else {
+                                            writableRow.put(Loader.TEST_STATUS, Loader.TEST_FAILED);
+                                        }
+                                    }
+                                    rowNum++;
+                                    
+                                    //writableData.get(mapMethodName).get(rowNum++).put(Loader.ACTUAL_RESULT, returnObj);
                                 }
 
                             }
                         } catch (CouldNotGenerateValueException e) {
                             // ignore
                         }
+                        testReportContainer.addTestResult(testResult);
                     }
                 };
             }
@@ -764,11 +832,23 @@ public class SpringTestRunner extends Suite {
                     + "You can provide the custom Loader by choosing LoaderType.CUSTOM in TestData "
                     + "annotation and providing your custom loader using DataLoader annotation.");
             } else {
-                Map<String, List<Map<String, Object>>> data = dataLoader.loadData(testInfo.getFilePaths());
-                // We also maintain the copy of the actual data for our write functionality.
-                writableData.putAll(data);
-                DataContext.setData(DataConverter.appendClassName(data, currentTestClass));
-                DataContext.setConvertedData(DataConverter.convert(data, currentTestClass));
+                ResourceLoader resourceLoader = new ResourceLoaderStrategy(getTestClass().getJavaClass());
+                for(String filePath : testInfo.getFilePaths()){
+                    Resource resource = resourceLoader.getResource(filePath);
+                    try {
+                        if(resource.exists()){
+                            Map<String, List<Map<String, Object>>> data = dataLoader.loadData(resource);
+                            // We also maintain the copy of the actual data for our write functionality.
+                            writableData.putAll(data);
+                            DataContext.setData(DataConverter.appendClassName(data, currentTestClass));
+                            DataContext.setConvertedData(DataConverter.convert(data, currentTestClass));
+                        }
+                    } catch (Exception e) {
+                        PARAM_LOG.error("Error occured while trying to find the resource with path {} ", resource.getResourceName(),e);
+                        throw new RuntimeException(e);
+                    }
+                }
+                
 
             }
         }
