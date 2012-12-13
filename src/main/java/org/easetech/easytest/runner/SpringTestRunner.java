@@ -208,7 +208,7 @@ public class SpringTestRunner extends Suite {
          * 
          * @param errors
          */
-        @Override
+         
         protected void collectInitializationErrors(List<Throwable> errors) {
             super.collectInitializationErrors(errors);
             //validateDataPointFields(errors);
@@ -221,7 +221,7 @@ public class SpringTestRunner extends Suite {
          * @param method the {@link FrameworkMethod}
          * @return an overridden test method Name
          */
-        @Override
+         
         protected String testName(final FrameworkMethod method) {
             return String.format("%s", method.getName());
         }
@@ -236,7 +236,7 @@ public class SpringTestRunner extends Suite {
          * 
          * @return list of {@link FrameworkMethod}
          */
-        @Override
+         
         protected List<FrameworkMethod> computeTestMethods() {
             if (frameworkMethods != null && !frameworkMethods.isEmpty()) {
                 return frameworkMethods;
@@ -297,7 +297,7 @@ public class SpringTestRunner extends Suite {
          * 
          * @param errors list of any errors while validating the Constructor
          */
-        @Override
+         
         protected void validateConstructor(List<Throwable> errors) {
             validateOnlyOneConstructor(errors);
         }
@@ -307,12 +307,12 @@ public class SpringTestRunner extends Suite {
          * 
          * @param errors list of any errors while validating test method
          */
-        @Override
+         
         protected void validateTestMethods(List<Throwable> errors) {
             //Do Nothing as we now support public non void arg test methods
         }
         
-        @Override
+         
         protected Object createTest() throws Exception {
             return null;
             
@@ -325,7 +325,7 @@ public class SpringTestRunner extends Suite {
          * @return a compiled {@link Statement} object to be evaluated
          */
         
-        @Override
+         
         public Statement methodBlock(final FrameworkMethod method) {
             return new ParamAnchor(method, getTestClass());
         }
@@ -340,7 +340,7 @@ public class SpringTestRunner extends Suite {
          * data from the test method. This method will make sure that the data is written to the output file once after
          * the Runner has completed and not for every instance of the test method.
          */
-        @Override
+         
         protected Statement withAfterClasses(Statement statement) {
             List<FrameworkMethod> afters = getTestClass().getAnnotatedMethods(AfterClass.class);
             List<FrameworkMethod> testMethods = getTestClass().getAnnotatedMethods(Test.class);
@@ -442,7 +442,7 @@ public class SpringTestRunner extends Suite {
                 return fTestClass;
             }
 
-            @Override
+             
             public void evaluate() throws Throwable {
                 runWithAssignment(EasyAssignments.allUnassigned(fTestMethod.getMethod(), getTestClass()));
                 LOG.debug("ParamAnchor evaluate");
@@ -520,7 +520,7 @@ public class SpringTestRunner extends Suite {
                         final EachTestNotifier eachNotifier= new EachTestNotifier(notifier,null);
                         eachNotifier.fireTestStarted();
                         return new Statement() {
-                            @Override
+                             
                             public void evaluate() throws Throwable {
                                 try {
                                     statement.evaluate();
@@ -688,7 +688,7 @@ public class SpringTestRunner extends Suite {
      * 
      * @return a list of {@link DataDrivenTestRunner}
      */
-    @Override
+     
     protected List<Runner> getChildren() {
         return runners;
     }
@@ -768,7 +768,7 @@ public class SpringTestRunner extends Suite {
      * Returns a {@link Statement}: We override this method as it was being called twice 
      * for the same class. Looks like a bug in JUnit.
      */
-    @Override
+     
     protected Statement withBeforeClasses(Statement statement) {
         return statement;
     }
@@ -858,7 +858,7 @@ public class SpringTestRunner extends Suite {
      * Returns a {@link Statement}: We override this method as it was being called twice 
      * for the same class. Looks like a bug in JUnit.
      */
-    @Override
+     
     protected Statement withAfterClasses(Statement statement) {
         return statement;
     }
