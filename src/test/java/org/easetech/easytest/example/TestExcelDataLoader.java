@@ -1,10 +1,11 @@
 
 package org.easetech.easytest.example;
 
+import org.easetech.easytest.interceptor.SpringIntercept;
+
 import org.easetech.easytest.annotation.DataLoader;
 import org.easetech.easytest.annotation.Intercept;
 import org.easetech.easytest.annotation.Param;
-import org.easetech.easytest.annotation.Report;
 import org.easetech.easytest.loader.LoaderType;
 import org.easetech.easytest.runner.DataDrivenTestRunner;
 import org.junit.BeforeClass;
@@ -20,12 +21,7 @@ public class TestExcelDataLoader {
     
     @Intercept
     public static RealItemService itemService = new RealItemService();
-
-    @BeforeClass
-    public static void setUpGone() {
-        
-        System.out.println("Should be printed only once");
-    }
+    
     /**
      * An instance of logger associated with the test framework.
      */
