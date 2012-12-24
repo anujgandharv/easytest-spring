@@ -1,14 +1,11 @@
 
 package org.easetech.easytest.example;
 
-import org.easetech.easytest.interceptor.SpringIntercept;
-
 import org.easetech.easytest.annotation.DataLoader;
 import org.easetech.easytest.annotation.Intercept;
 import org.easetech.easytest.annotation.Param;
 import org.easetech.easytest.loader.LoaderType;
 import org.easetech.easytest.runner.DataDrivenTestRunner;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -20,7 +17,7 @@ import org.slf4j.LoggerFactory;
 public class TestExcelDataLoader {
     
     @Intercept
-    public static RealItemService itemService = new RealItemService();
+    static RealItemService itemService = new RealItemService();
     
     /**
      * An instance of logger associated with the test framework.

@@ -1,7 +1,7 @@
 
 package org.easetech.easytest.runner;
 
-import org.easetech.easytest.interceptor.SpringIntercept;
+import org.easetech.easytest.config.ConfigLoader;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -12,10 +12,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.aopalliance.intercept.MethodInterceptor;
 import org.easetech.easytest.annotation.DataLoader;
 import org.easetech.easytest.annotation.Intercept;
 import org.easetech.easytest.annotation.Param;
+import org.easetech.easytest.interceptor.InternalSpringInterceptor;
+import org.easetech.easytest.interceptor.MethodIntercepter;
 import org.easetech.easytest.internal.EasyAssignments;
 import org.easetech.easytest.io.Resource;
 import org.easetech.easytest.io.ResourceLoader;
@@ -165,6 +166,7 @@ public class SpringTestRunner extends Suite {
                 testReportContainer = new ReportDataContainer(getTestClass().getJavaClass());
                 testInstance = getTestClass().getOnlyConstructor().newInstance();
                 getTestContextManager().prepareTestInstance(testInstance);
+                ConfigLoader.loadTestConfigurations(getTestClass().getJavaClass(), testInstance);
                 instrumentClass(getTestClass().getJavaClass());
 
             } catch (Exception e) {
@@ -187,14 +189,17 @@ public class SpringTestRunner extends Suite {
             Field[] fields = testClass.getDeclaredFields();
             try {
                 for (Field field : fields) {
-                    SpringIntercept interceptor = field.getAnnotation(SpringIntercept.class);
+                    field.setAccessible(true);
+                    Intercept interceptor = field.getAnnotation(Intercept.class);
                     if (interceptor != null) {
-                        Class<? extends MethodInterceptor> interceptorClass = interceptor.interceptor();
+                        Class<? extends MethodIntercepter> interceptorClass = interceptor.interceptor();
                         // This is the field we want to enhance
                         Object fieldInstance = field.get(testInstance);
                         ProxyFactory factory = new ProxyFactory();
                         factory.setTarget(fieldInstance);
-                        factory.addAdvice(interceptorClass.newInstance());
+                        InternalSpringInterceptor internalIntercepter = new InternalSpringInterceptor(); 
+                        internalIntercepter.setUserIntercepter(interceptorClass.newInstance());
+                        factory.addAdvice(internalIntercepter);
                         Object proxy = factory.getProxy();
                         field.set(testInstance, proxy);
                     }
